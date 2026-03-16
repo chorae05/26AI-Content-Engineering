@@ -40,6 +40,7 @@ PS_INPUT VS(VS_INPUT input) {
 float4 PS(PS_INPUT input) : SV_Target { return input.col; }
 )";
 
+
 // --- [윈도우 프로시저: 이벤트 기반 입력 처리 핵심] ---
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
     switch (message) {
