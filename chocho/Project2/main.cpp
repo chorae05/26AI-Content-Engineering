@@ -72,10 +72,10 @@ void RenderConsole(const GameObject* player, float fps) {
     else
         printf("FPS : Calculating...\n");
     printf("Player Position: (%.2f, %.2f)\n", player->x, player->y);
-    printf("Shape: Hexagram (Star) [BIG]\n"); // 상태창 업데이트
+    printf("Shape: Math Heart (Sin/Cos)\n"); // 상태창 업데이트
     printf("========================\n");
 
-    // 좌표 시각화 (간이) - 간격 대폭 축소
+    // 좌표 시각화
     int py = (int)(player->y / 60.0f);
     int px = (int)(player->x / 30.0f);
 
@@ -85,12 +85,12 @@ void RenderConsole(const GameObject* player, float fps) {
     for (int i = 0; i < py; i++) printf("\n");
     for (int i = 0; i < px; i++) printf(" ");
 
-    // 특수문자 깨짐 방지를 위해 S 사용
-    printf("S\n");
+    // 특수문자 깨짐 방지 세팅을 했으므로 진짜 하트를 출력합니다!
+    printf("♥\n");
 }
 
 int main() {
-    // 콘솔창 인코딩 설정
+    // 콘솔창 인코딩 설정 (♥ 기호 출력을 위함)
     SetConsoleOutputCP(949);
 
     HINSTANCE hInstance = GetModuleHandle(nullptr);
@@ -107,12 +107,12 @@ int main() {
     int windowWidth = rect.right - rect.left;
     int windowHeight = rect.bottom - rect.top;
 
-    HWND hWnd = CreateWindow(L"DX11EventClass", L"DirectX11 Big Multi-Color Hexagram (600x600 Fixed)",
+    HWND hWnd = CreateWindow(L"DX11EventClass", L"DirectX11 Parametric Heart (Sin/Cos)",
         windowStyle, CW_USEDEFAULT, CW_USEDEFAULT,
         windowWidth, windowHeight, nullptr, nullptr, hInstance, nullptr);
     ShowWindow(hWnd, nCmdShow);
 
-    // 2. D3D11 & SwapChain 초기화 (백버퍼 600x600)
+    // 2. D3D11 & SwapChain 초기화
     DXGI_SWAP_CHAIN_DESC sd = {};
     sd.BufferCount = 1;
     sd.BufferDesc.Width = 600;
@@ -145,9 +145,14 @@ int main() {
     ID3D11InputLayout* pInputLayout;
     g_pd3dDevice->CreateInputLayout(layout, 2, vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), &pInputLayout);
 
-    // 육망성을 위해 6개의 정점을 담을 수 있는 정점 버퍼를 생성합니다. (3 -> 6)
+    // =========================================================================
+    // [수정 1] 부드러운 곡선을 위해 36조각(108개 정점)의 버퍼를 준비합니다.
+    // =========================================================================
+    const int SEGMENTS = 36;
+    const int VERTEX_COUNT = SEGMENTS * 3;
+
     ID3D11Buffer* pVBuffer;
-    D3D11_BUFFER_DESC bd = { sizeof(Vertex) * 6, D3D11_USAGE_DYNAMIC, D3D11_BIND_VERTEX_BUFFER, D3D11_CPU_ACCESS_WRITE, 0, 0 };
+    D3D11_BUFFER_DESC bd = { sizeof(Vertex) * VERTEX_COUNT, D3D11_USAGE_DYNAMIC, D3D11_BIND_VERTEX_BUFFER, D3D11_CPU_ACCESS_WRITE, 0, 0 };
     g_pd3dDevice->CreateBuffer(&bd, nullptr, &pVBuffer);
 
     // --- [타이머 초기화] ---
@@ -161,54 +166,50 @@ int main() {
             DispatchMessage(&msg);
         }
         else {
-            // [A. DeltaTime 계산]
             auto currentTime = std::chrono::high_resolution_clock::now();
             std::chrono::duration<float> elapsed = currentTime - prevTime;
             float dt = elapsed.count();
             if (dt < 0.0001f) dt = 0.0001f;
             prevTime = currentTime;
 
-            // [B. Update: Input Process & Logic]
             if (g_KeyState['W']) g_Player.y -= g_Player.speed * dt;
             if (g_KeyState['S']) g_Player.y += g_Player.speed * dt;
             if (g_KeyState['A']) g_Player.x -= g_Player.speed * dt;
             if (g_KeyState['D']) g_Player.x += g_Player.speed * dt;
 
-            // [C-1. 콘솔창 렌더링]
             float instantFPS = 1.0f / dt;
             RenderConsole(&g_Player, instantFPS);
 
-            // [C-2. DirectX 화면 렌더링을 위한 좌표 변환 및 육망성 정점 계산]
             float ndcX = (g_Player.x / 300.0f) - 1.0f;
             float ndcY = -((g_Player.y / 300.0f) - 1.0f);
 
             // =========================================================================
-            // [수정] 육망성 크기를 대폭 키웠습니다. (0.15f -> 0.4f)
+            // [수정 2] Sin, Cos을 이용한 수학적 하트 정점 계산
             // =========================================================================
-            float scale = 0.4f; // ★ 이 값을 0.4로 키워 삼각형들이 큼직하게 보입니다.
-            float offsetX = scale * 0.866025f; // scale * (sqrt(3.0f) / 2.0f)
-            float offsetY = scale * 0.5f;
+            Vertex vertices[VERTEX_COUNT];
+            float scale = 0.025f; // 하트 전체 크기 조절
+            const float PI = 3.14159265f;
 
-            Vertex vertices[6]; // 6개의 정점을 담을 배열
+            for (int i = 0; i < SEGMENTS; ++i) {
+                // 360도를 36등분하여 시작 각도(t1)와 끝 각도(t2)를 구합니다.
+                float t1 = (float)i / SEGMENTS * 2.0f * PI;
+                float t2 = (float)(i + 1) / SEGMENTS * 2.0f * PI;
 
-            // --- 삼각형 1 (위쪽으로 뾰족한 원래 삼각형, R-G-B 그래디언트) ---
-            // 위쪽 꼭지점
-            vertices[0] = { 0.0f + ndcX,     scale + ndcY, 0.5f, 1.0f, 0.0f, 0.0f, 1.0f }; // Red
-            // 아래 오른쪽 꼭지점
-            vertices[1] = { offsetX + ndcX, -offsetY + ndcY, 0.5f, 0.0f, 1.0f, 0.0f, 1.0f }; // Green
-            // 아래 왼쪽 꼭지점
-            vertices[2] = { -offsetX + ndcX, -offsetY + ndcY, 0.5f, 0.0f, 0.0f, 1.0f, 1.0f }; // Blue
+                // 1. 삼각형의 중심점 (부채꼴의 시작점) - 약간 밝은 핑크빛
+                vertices[i * 3 + 0] = { 0.0f + ndcX, 0.0f + ndcY, 0.5f, 1.0f, 0.4f, 0.6f, 1.0f };
 
-            // --- 삼각형 2 (아래쪽으로 뾰족한 거꾸로 된 삼각형, G-B-R 그래디언트로 multi-color 효과) ---
-            // 아래쪽 꼭지점
-            vertices[3] = { 0.0f + ndcX,    -scale + ndcY, 0.5f, 0.0f, 1.0f, 0.0f, 1.0f }; // Green (reversed color loop)
-            // 위쪽 왼쪽 꼭지점 (시계방향 순서 준수)
-            vertices[4] = { -offsetX + ndcX,  offsetY + ndcY, 0.5f, 0.0f, 0.0f, 1.0f, 1.0f }; // Blue
-            // 위쪽 오른쪽 꼭지점
-            vertices[5] = { offsetX + ndcX,  offsetY + ndcY, 0.5f, 1.0f, 0.0f, 0.0f, 1.0f }; // Red
+                // 2. 동그라미 2개와 아래 삼각형의 궤적을 그리는 첫 번째 하트 테두리 공식 (t1) - 강렬한 빨간색
+                float x1 = 16.0f * sin(t1) * sin(t1) * sin(t1);
+                float y1 = 13.0f * cos(t1) - 5.0f * cos(2.0f * t1) - 2.0f * cos(3.0f * t1) - cos(4.0f * t1);
+                vertices[i * 3 + 1] = { (x1 * scale) + ndcX, (y1 * scale) + ndcY, 0.5f, 1.0f, 0.0f, 0.2f, 1.0f };
+
+                // 3. 두 번째 하트 테두리 공식 (t2)
+                float x2 = 16.0f * sin(t2) * sin(t2) * sin(t2);
+                float y2 = 13.0f * cos(t2) - 5.0f * cos(2.0f * t2) - 2.0f * cos(3.0f * t2) - cos(4.0f * t2);
+                vertices[i * 3 + 2] = { (x2 * scale) + ndcX, (y2 * scale) + ndcY, 0.5f, 1.0f, 0.0f, 0.2f, 1.0f };
+            }
             // =========================================================================
 
-            // 데이터 복사
             D3D11_MAPPED_SUBRESOURCE mapped;
             g_pImmediateContext->Map(pVBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
             memcpy(mapped.pData, vertices, sizeof(vertices));
@@ -227,12 +228,13 @@ int main() {
             g_pImmediateContext->VSSetShader(vShader, nullptr, 0);
             g_pImmediateContext->PSSetShader(pShader, nullptr, 0);
 
-            // 6개의 정점을 그립니다.
-            g_pImmediateContext->Draw(6, 0);
+            // =========================================================================
+            // [수정 3] 108개의 정점을 모두 그립니다.
+            // =========================================================================
+            g_pImmediateContext->Draw(VERTEX_COUNT, 0);
 
             g_pSwapChain->Present(1, 0);
 
-            // [D. Sleep]
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
     }
