@@ -34,10 +34,10 @@ void UpdateTimer(CGameTimer* timer) {
 // =========================================================
 // [2] 전역 객체 및 정점 구조체 (수학 좌표용 UV 추가)
 // =========================================================
-ID3D11Device* g_pd3dDevice = nullptr;
-ID3D11DeviceContext* g_pImmediateContext = nullptr;
-IDXGISwapChain* g_pSwapChain = nullptr;
-ID3D11RenderTargetView* g_pRenderTargetView = nullptr;
+ID3D11Device* g_pd3dDevice = nullptr;          
+ID3D11DeviceContext* g_pImmediateContext = nullptr;   
+IDXGISwapChain* g_pSwapChain = nullptr;          
+ID3D11RenderTargetView* g_pRenderTargetView = nullptr;   
 
 struct Vertex {
     float x, y, z;
@@ -102,7 +102,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 // [3] 메인 함수
 // =========================================================
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
-
+    
     // --- 윈도우 생성 ---
     WNDCLASSEXW wcex = { sizeof(WNDCLASSEX) };
     wcex.lpfnWndProc = WndProc;
@@ -119,7 +119,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
     HWND hWnd = CreateWindowW(L"DX11MathStrawberryClass", L"과제: 수학 방정식으로 딸기 그리기",
         WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT,
-        rc.right - rc.left, rc.bottom - rc.top,
+        rc.right - rc.left, rc.bottom - rc.top, 
         nullptr, nullptr, hInstance, nullptr);
 
     if (!hWnd) return -1;
@@ -128,7 +128,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     // --- DX11 초기화 ---
     DXGI_SWAP_CHAIN_DESC sd = {};
     sd.BufferCount = 1;
-    sd.BufferDesc.Width = screenWidth;
+    sd.BufferDesc.Width = screenWidth; 
     sd.BufferDesc.Height = screenHeight;
     sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
     sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
@@ -142,7 +142,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     ID3D11Texture2D* pBackBuffer = nullptr;
     g_pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&pBackBuffer);
     g_pd3dDevice->CreateRenderTargetView(pBackBuffer, nullptr, &g_pRenderTargetView);
-    pBackBuffer->Release();
+    pBackBuffer->Release(); 
 
     // --- 셰이더 컴파일 ---
     ID3DBlob* vsBlob, * psBlob;
@@ -162,7 +162,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     };
     ID3D11InputLayout* pInputLayout;
     g_pd3dDevice->CreateInputLayout(layout, 3, vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), &pInputLayout);
-    vsBlob->Release(); psBlob->Release();
+    vsBlob->Release(); psBlob->Release(); 
 
     // --- 정점 버퍼 (방정식을 그릴 도화지 역할인 사각형) ---
     // 육망성 대신 4개의 정점으로 네모 판자를 만듭니다.
@@ -172,7 +172,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         { -0.4f, -0.5f, 0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f }, // 좌하단
         {  0.4f, -0.5f, 0.5f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f }, // 우하단
     };
-
+    
     ID3D11Buffer* pVBuffer;
     D3D11_BUFFER_DESC bd = { sizeof(baseVertices), D3D11_USAGE_DEFAULT, D3D11_BIND_VERTEX_BUFFER, 0, 0, 0 };
     D3D11_SUBRESOURCE_DATA initData = { baseVertices, 0, 0 };
@@ -182,11 +182,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     CGameTimer myTimer;
     InitTimer(&myTimer);
 
-    float offsetX = 0.0f;
-    float offsetY = 0.0f;
-    float speed = 1.0f;
-    float elapsedTime = 0.0f;
-    int frameCount = 0;
+    float offsetX = 0.0f; 
+    float offsetY = 0.0f; 
+    float speed = 1.0f;   
+    float elapsedTime = 0.0f; 
+    int frameCount = 0;       
 
     MSG msg = { 0 };
     while (WM_QUIT != msg.message) {
@@ -195,7 +195,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             DispatchMessage(&msg);
         }
         else {
-            UpdateTimer(&myTimer);
+            UpdateTimer(&myTimer); 
 
             if (GetAsyncKeyState('W') & 0x8000) offsetY += speed * (float)myTimer.deltaTime;
             if (GetAsyncKeyState('S') & 0x8000) offsetY -= speed * (float)myTimer.deltaTime;
@@ -211,19 +211,15 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
             g_pImmediateContext->UpdateSubresource(pVBuffer, 0, nullptr, currentVertices, 0, 0);
 
-            // 매 프레임마다 시간과 프레임 횟수 누적
+            // 콘솔 출력 (\n으로 수정하여 한 줄씩 쭉쭉 올라가게 함)
+            printf("DeltaTime: %.6f\n", myTimer.deltaTime); 
+            
             elapsedTime += (float)myTimer.deltaTime;
             frameCount++;
-
-            // =========================================================
-            // [수정 완료!] 누적된 시간이 1초(1.0f)를 넘었을 때 델타타임과 FPS를 딱 한 번 출력
-            // =========================================================
             if (elapsedTime >= 1.0f) {
-                printf("DeltaTime: %.6f\n", myTimer.deltaTime);
-                printf("[1초 경과] 렌더링 프레임: %d FPS\n\n", frameCount);
-
-                elapsedTime = 0.0f;
-                frameCount = 0;
+                printf("\n[1초 경과] 렌더링 프레임: %d FPS\n\n", frameCount);
+                elapsedTime = 0.0f; 
+                frameCount = 0;     
             }
 
             // 렌더링 (배경색을 어두운 회색으로)
