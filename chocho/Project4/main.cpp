@@ -1,30 +1,31 @@
-#include <windows.h>
-#include <d3d11.h>
-#include <d3dcompiler.h>
-#include <stdio.h>
-#include <math.h>
-
-// [링커 옵션] 윈도우 창과 콘솔창을 동시에 활성화
+#include <chrono>         // [시간 측정] 프레임 간격(DeltaTime)을 아주 정밀하게 측정하기 위한 C++ 시간 라이브러리
+#include <d3d11.h>        // [DirectX 핵심] DirectX 11을 이용해 GPU를 제어하고 그래픽을 그리기 위한 핵심 기능
+#include <d3dcompiler.h>  // [셰이더 번역기] 
+#include <stdio.h>        // [입출력] FPS나 델타 타임 같은 정보를 콘솔창(검은 창)에 출력(printf)하기 위해 필요
+#include <math.h>         // [수학] C++ 내부에서 sin, cos 같은 수학 계산이 필요할 때 사용하는 기본 수학 라이브러리입
+// [창 두 개 띄우기] 원래 윈도우 프로그램은 '게임창'만 뜨거나 '콘솔창(검은창)'만 뜰 수 있는데, 
+// 이 설정을 넣으면 게임 화면과 디버그용 콘솔창을 동시에 띄울 수 있습니다.
 #pragma comment(linker, "/entry:WinMainCRTStartup /subsystem:console")
-#pragma comment(lib, "d3d11.lib")
-#pragma comment(lib, "dxgi.lib")
-#pragma comment(lib, "d3dcompiler.lib")
-
+// 비주얼 스튜디오 설정 창에 번거롭게 들어가지 않고도, 코드 한 줄로 DirectX 라이브러리들을 자동으로 연결해주는 마법의 명령어들입니다.
+#pragma comment(lib, "d3d11.lib")         // DirectX 11 기능이 담긴 실제 라이브러리 부품 연결
+#pragma comment(lib, "dxgi.lib")          // 모니터에 화면을 출력하고 버퍼를 교체(Swap Chain)해주는 기초 그래픽 인프라 부품 연결
+#pragma comment(lib, "d3dcompiler.lib")   // 셰이더 번역기 라이브러리 부품 연결
 // =========================================================
 // [1] 타이머 구조체 및 함수 정의
 // =========================================================
 typedef struct {
-    LARGE_INTEGER frequency;
-    LARGE_INTEGER prevTime;
-    double deltaTime;
+    LARGE_INTEGER frequency;    //cpu의 초당 진동 횟수
+	LARGE_INTEGER prevTime;     //이전 프레임의 시간 (쿼리 성능 카운터로 측정)
+	double deltaTime;   //이전 프레임과 현재 프레임 사이의 시간 간격 (초 단위)
 } CGameTimer;
 
 void InitTimer(CGameTimer* timer) {
+   // 하드웨어마다 다른 cpu 클릭 주파수를 초기에 파악하여, 틱 단위로 '초'단위로 정규화함
     QueryPerformanceFrequency(&timer->frequency);
     QueryPerformanceCounter(&timer->prevTime);
     timer->deltaTime = 0.0;
 }
-
+//프레임 간격(DaltaTime)을 측정하여 하드웨어 성능과 관계없는 일관된 물리 법칙 적용 준비
 void UpdateTimer(CGameTimer* timer) {
     LARGE_INTEGER currentTime;
     QueryPerformanceCounter(&currentTime);
