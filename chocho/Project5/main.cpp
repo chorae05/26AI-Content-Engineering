@@ -2,7 +2,6 @@
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "d3dcompiler.lib")
 
-// [오류 해결] 시스템 설정과 관계없이 WinMain을 시작점으로 강제 지정
 #pragma comment(linker, "/subsystem:windows /entry:WinMainCRTStartup")
 
 #include <windows.h>
@@ -93,15 +92,30 @@ public:
 // 2. 렌더러 컴포넌트
 class RendererComponent : public Component {
     float r, g, b;
+    bool isFlipped; // 뒤집힘 여부를 저장할 변수 추가
 public:
-    RendererComponent(float cr, float cg, float cb) : r(cr), g(cg), b(cb) {}
+    // 생성자에서 flip 여부를 받습니다 (기본값 false)
+    RendererComponent(float cr, float cg, float cb, bool flip = false)
+        : r(cr), g(cg), b(cb), isFlipped(flip) {
+    }
+
     void Render() override {
-        // 현재 오너의 위치를 반영한 삼각형 정점 생성
-        Vertex v[3] = {
-            { owner->x + 0.0f, owner->y + 0.1f, 0.5f, r, g, b, 1.0f },
-            { owner->x + 0.1f, owner->y - 0.1f, 0.5f, r, g, b, 1.0f },
-            { owner->x - 0.1f, owner->y - 0.1f, 0.5f, r, g, b, 1.0f }
-        };
+        Vertex v[3];
+
+        if (!isFlipped) {
+            // [정방향] 위 -> 오른쪽 아래 -> 왼쪽 아래 (시계 방향)
+            v[0] = { owner->x + 0.0f, owner->y + 0.1f, 0.5f, r, g, b, 1.0f };
+            v[1] = { owner->x + 0.1f, owner->y - 0.1f, 0.5f, r, g, b, 1.0f };
+            v[2] = { owner->x - 0.1f, owner->y - 0.1f, 0.5f, r, g, b, 1.0f };
+        }
+        else {
+            // [뒤집힘] 아래 -> 왼쪽 위 -> 오른쪽 위 (시계 방향 유지!)
+            // 단순히 Y부호만 바꾼 게 아니라, 정점 순서를 재배치해서 시계 방향을 맞췄습니다.
+            v[0] = { owner->x + 0.0f, owner->y - 0.1f, 0.5f, r, g, b, 1.0f }; // 아래 꼭짓점
+            v[1] = { owner->x - 0.1f, owner->y + 0.1f, 0.5f, r, g, b, 1.0f }; // 왼쪽 위
+            v[2] = { owner->x + 0.1f, owner->y + 0.1f, 0.5f, r, g, b, 1.0f }; // 오른쪽 위
+        }
+
         g_context->UpdateSubresource(g_vb, 0, nullptr, v, 0, 0);
         g_context->Draw(3, 0);
     }
@@ -153,11 +167,11 @@ void Init(HWND hWnd) {
     // 게임 오브젝트 초기화
     g_p1 = new GameObject(); g_p1->x = -0.4f;
     g_p1->Add(new InputComponent(true));  // 방향키
-    g_p1->Add(new RendererComponent(1.0f, 0.3f, 0.3f));
+    g_p1->Add(new RendererComponent(1.0f, 0.3f, 0.3f, false));
 
     g_p2 = new GameObject(); g_p2->x = 0.4f;
     g_p2->Add(new InputComponent(false)); // WASD
-    g_p2->Add(new RendererComponent(0.3f, 0.7f, 1.0f));
+    g_p2->Add(new RendererComponent(0.3f, 0.7f, 1.0f, true));
 }
 
 void Update(float dt) {
@@ -252,7 +266,7 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE, LPSTR, int nShow) {
             std::chrono::duration<float> elapsed = currTime - prevTime;
             prevTime = currTime;
             float dt = elapsed.count();
-
+             
             // [Update] & [Render]
             Update(dt);
             Render();
