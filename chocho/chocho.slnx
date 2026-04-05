@@ -7,4 +7,5 @@
   <Project Path="Project2/Project2.vcxproj" Id="db5bd09d-b363-4ae4-9eb2-aabbce2e85ee" />
   <Project Path="Project3/Project3.vcxproj" Id="a2cdcdbb-d16d-4bfe-931d-466a0fdbe80c" />
   <Project Path="Project4/Project4.vcxproj" Id="5e0fb06c-5149-4755-b9a4-e9e9a7698fc2" />
+  <Project Path="Project5/Project5.vcxproj" Id="8acbd8d1-bce2-4746-a196-f0d60375862b" />
 </Solution>
