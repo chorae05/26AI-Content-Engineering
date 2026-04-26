@@ -21,10 +21,10 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{b1d2111a-15cf-42ce-891a-a3ceb67032b2}</ProjectGuid>
-    <RootNamespace>My05VSSample</RootNamespace>
+    <ProjectGuid>{d0c8c923-0542-4970-a3cd-33ad7d23939d}</ProjectGuid>
+    <RootNamespace>My05ShaderBasic</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
-    <ProjectName>05_VS_Sample_move</ProjectName>
+    <ProjectName>05_ShaderBasic_Screen</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">

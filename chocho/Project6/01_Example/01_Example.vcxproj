@@ -21,10 +21,10 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{b1d2111a-15cf-42ce-891a-a3ceb67032b2}</ProjectGuid>
-    <RootNamespace>My05VSSample</RootNamespace>
+    <ProjectGuid>{a09f5890-339a-44c8-833a-f958c3affbde}</ProjectGuid>
+    <RootNamespace>My01Example</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
-    <ProjectName>05_VS_Sample_move</ProjectName>
+    <ProjectName>Example_02</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -129,6 +129,9 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="FileName.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="시험문제.md" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -38,6 +38,7 @@ cbuffer MoveBuffer : register(b0) // 0번 상수 버퍼 입구에서 대기
 };
 
 
+
  [한 줄 요약]
  cbuffer는 CPU가 GPU에게 보내는 '편지 봉투'이고,
  register(b0)는 그 편지가 도착할 '우체통 번호'라고 생각하자.
@@ -152,23 +153,20 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
     // [셰이더 소스: 오프셋 적용 버전]
     const char* shaderSource = R"(
-        cbuffer MoveBuffer : register(b0) // 상수 버퍼 슬롯 b0 사용  [0번 우체통]에서 데이터를 기다림
+        ////VSSetConstantBuffers(0, 1, &g_pConstantBuffer)로 가보셈
+        cbuffer MoveBuffer : register(b0) // 상수 버퍼 슬롯 b0 사용  [0번 우체통]에서 데이터를 기다림 
         {
             float2 g_Offset; // CPU에서 보내준 x, y 이동값
             float2 g_Padding;   //// 16바이트 정렬용 빈 공간
         };
 
-        struct VS_INPUT {float3 pos : POSITION;float4 col : COLOR; };
-
-        struct PS_INPUT {
-            float4 pos : SV_POSITION;
-            float4 col : COLOR;
-        };
+        struct VS_INPUT { float3 pos : POSITION; float4 col : COLOR; };
+        struct PS_INPUT { float4 pos : SV_POSITION; float4 col : COLOR; };
 
         PS_INPUT VS_Main(VS_INPUT input) {
             PS_INPUT output;
             
-            // 입력받은 정점 위치에 오프셋을 더함 (이동 처리)
+            // 입력받은 정점 위치에 오프셋을 더함 (이동 처리) || 입력받은 점의 위치에 CPU에서 보낸 이동값(g_Offset)을 더함
             float3 finalPos = input.pos;
             finalPos.x += g_Offset.x;
             finalPos.y += g_Offset.y;
@@ -182,36 +180,46 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             return input.col;
         }
     )";
-
+	// [1. 셰이더 컴파일 및 생성]
     ID3DBlob* vsBlob, * psBlob;
     D3DCompile(shaderSource, strlen(shaderSource), nullptr, nullptr, nullptr, "VS_Main", "vs_4_0", 0, 0, &vsBlob, nullptr);
     D3DCompile(shaderSource, strlen(shaderSource), nullptr, nullptr, nullptr, "PS_Main", "ps_4_0", 0, 0, &psBlob, nullptr);
     g_pd3dDevice->CreateVertexShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), nullptr, &g_pVertexShader);
     g_pd3dDevice->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), nullptr, &g_pPixelShader);
-
+	// [2. 입력 레이아웃 및 버텍스 버퍼 생성]
     D3D11_INPUT_ELEMENT_DESC layout[] = {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
         { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
     };
+	// [3. 입력 레이아웃 생성] 셰이더의 입력 구조(VS_INPUT)와 일치하도록 레이아웃을 정의하고, 셰이더 바이트코드를 기반으로 입력 레이아웃 객체를 생성
     g_pd3dDevice->CreateInputLayout(layout, 2, vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), &g_pInputLayout);
     vsBlob->Release(); psBlob->Release();
-
+	// [4. 버텍스 데이터 정의 및 버텍스 버퍼 생성]
     Vertex vertices[] = {
         {  0.0f,  0.3f, 0.5f, 1.0f, 0.0f, 0.0f, 1.0f },
         {  0.3f, -0.3f, 0.5f, 0.0f, 1.0f, 0.0f, 1.0f },
         { -0.3f, -0.3f, 0.5f, 0.0f, 0.0f, 1.0f, 1.0f },
     };
+
+	// [1. 버텍스 버퍼 생성] 정의한 정점 데이터를 GPU 메모리에 올리기 위해 버텍스 버퍼를 생성.
+    // D3D11_BUFFER_DESC 구조체로 버퍼의 크기와 용도를 지정하고, D3D11_SUBRESOURCE_DATA 구조체로 초기 데이터를 제공하여 CreateBuffer 함수를 호출
     D3D11_BUFFER_DESC bd = { sizeof(vertices), D3D11_USAGE_DEFAULT, D3D11_BIND_VERTEX_BUFFER, 0, 0, 0 };
     D3D11_SUBRESOURCE_DATA initData = { vertices, 0, 0 };
     g_pd3dDevice->CreateBuffer(&bd, &initData, &g_pVertexBuffer);
 
-    // [2. 상수 버퍼 생성]
+
+
+
+
+
+    // [2. 상수 버퍼 생성] GPU 메모리에 '명령서'를 담을 전용 공간을 만듦
     D3D11_BUFFER_DESC cbd = { 0 };
-    cbd.Usage = D3D11_USAGE_DEFAULT;
+    cbd.Usage = D3D11_USAGE_DEFAULT;        // GPU가 읽고 쓰기 좋은 모드
     cbd.ByteWidth = sizeof(ConstantData); // 반드시 16의 배수여야 함!
     cbd.BindFlags = D3D11_BIND_CONSTANT_BUFFER; // "나는 상수 버퍼다"라고 용도 못 박기
     g_pd3dDevice->CreateBuffer(&cbd, nullptr, &g_pConstantBuffer);
 
+    // --- [게임 루프 시작] ---
     MSG msg = { 0 };
     while (WM_QUIT != msg.message) {
         if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
@@ -219,29 +227,43 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             DispatchMessage(&msg);
         }
         else {
-            // [방향키 입력 처리]
+
+            // [입력 처리] 방향키를 누르면 위치 값(g_CurOffset)을 변경
             float moveSpeed = 0.005f;
             if (GetAsyncKeyState(VK_LEFT))  g_CurOffset.x -= moveSpeed;
             if (GetAsyncKeyState(VK_RIGHT)) g_CurOffset.x += moveSpeed;
             if (GetAsyncKeyState(VK_UP))    g_CurOffset.y += moveSpeed;
             if (GetAsyncKeyState(VK_DOWN))  g_CurOffset.y -= moveSpeed;
 
+            //해상도 변경 처리
             if (GetAsyncKeyState('1') & 0x0001) { g_Config.Width = 800; g_Config.Height = 600; g_Config.NeedsResize = true; }
             if (GetAsyncKeyState('2') & 0x0001) { g_Config.Width = 1280; g_Config.Height = 720; g_Config.NeedsResize = true; }
             if (g_Config.NeedsResize) RebuildVideoResources(hWnd);
 
-            // [렌더링 시작]
+            // [렌더링] 배경 지우기
             float clearColor[] = { 0.1f, 0.2f, 0.3f, 1.0f };
             g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView, clearColor);
 
-            // [3. 상수 버퍼 데이터 업데이트 및 전송]
-            ConstantData cbData = { g_CurOffset };
+
+
+            // 3단계 cpu에서 배달할 편지 쓰는 구간 -----------------------------------------------------------------
+            // [3. 상수 버퍼 데이터 업데이트 및 전송] CPU의 바뀐 위치를 GPU 창고로 복사함
+            ConstantData cbData = { g_CurOffset };  // 현재 위치를 구조체에 담기
             // [교수님 강조 3] 실시간 데이터 배달 (Update)
-// 방향키로 바뀐 g_CurOffset 값을 GPU 메모리에 실제로 복사하는 순간임
+            // 방향키로 바뀐 g_CurOffset 값을 GPU 메모리에 실제로 복사하는 순간임
+
+            // (배달할 창고, 서브리소스 번호, 영역, 데이터 주소, 피치, 슬라이스피치)
+
+            // 1단계 의미: 위에서 계산한 따끈따끈한 좌표(g_CurOffset)를 
+             //  16바이트 편지 봉투(cbData)에 쏙 담은 거야.
             g_pImmediateContext->UpdateSubresource(g_pConstantBuffer, 0, nullptr, &cbData, 0, 0);
            
+
+
             // [교수님 강조 4] 슬롯 연결 (Binding)
-            // 0번 슬롯(b0)에 우리 우체통을 매달아라!
+            // //!!!!!![중요] VS(Vertex Shader)의 0번 슬롯(b0)에 이 창고를 연결함
+            // --- [2단계: 배달 시작] ---
+        // 봉투에 담았으니 이제 GPU 상자로 실제로 복사(전송)해야겠지?  //register(b0)주소로 가보셈!!!!
             g_pImmediateContext->VSSetConstantBuffers(0, 1, &g_pConstantBuffer); // VS의 0번 슬롯(b0)에 바인딩
 
             D3D11_VIEWPORT vp = { 0.0f, 0.0f, (float)g_Config.Width, (float)g_Config.Height, 0.0f, 1.0f };
@@ -249,7 +271,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             g_pImmediateContext->OMSetRenderTargets(1, &g_pRenderTargetView, nullptr);
 
             UINT stride = sizeof(Vertex), offset = 0;
+            // --- [1단계: 입구 연결] ---
+        // "나 0번 우체통에 넣어놨으니까 셰이더야 거기 봐!"
             g_pImmediateContext->IASetVertexBuffers(0, 1, &g_pVertexBuffer, &stride, &offset);
+            //-------------------------------------------------------------------------------------------
             g_pImmediateContext->IASetInputLayout(g_pInputLayout);
             g_pImmediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
             g_pImmediateContext->VSSetShader(g_pVertexShader, nullptr, 0);
