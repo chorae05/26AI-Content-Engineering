@@ -69,7 +69,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
 
 // [입구] 프로그램이 시작되는 지점
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
-    // 1. 윈도우 창 설계 및 등록
+	// 1. 윈도우 창 설계 및 등록         04_SCREENCONTROL과 04_viewprot와 거의 동일한 창 생성 코드
     WNDCLASSEXW wcex = { sizeof(WNDCLASSEX) }; // 종이의 크기(사양)를 먼저 적어줌
     wcex.lpfnWndProc = WndProc;                // [핵심] "사건 처리는 아까 만든 상황실(WndProc)에 맡길게!"
     wcex.hInstance = hInstance;                // 이 설계도의 주인(신분증) 등록
@@ -149,7 +149,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
     // 3. 셰이더 주문서 번역 및 무기 제작
     // 우리가 쓴 글자(텍스트)를 GPU가 알아듣는 기계어로 바꾸는 '번역' 과정이야.
-    ID3DBlob* vsBlob, * psBlob; // 번역된 기계어 데이터를 잠시 담아둘 '찰흙 덩어리(Blob)' 변수들
+    ID3DBlob* vsBlob, * psBlob; // 번역된 기계어 데이터를 잠시 담아둘 '찰흙 덩어리(Blob)' 변수들 // 컴파일된 바이너리 형태의셰이더 코드와 그 크기 정보
     // [ 1] 점의 위치를 계산하는 '정점 셰이더'를 기계어로 번역합니다.
     D3DCompile(
         shaderSource,           // (1) 번역할 소스 코드 (문자열)
@@ -231,7 +231,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     // [상자 사양서 작성]
     D3D11_BUFFER_DESC bd = {
         sizeof(vertices),           // (1) 상자의 전체 크기 (점 6개 분량의 바이트)
-        D3D11_USAGE_DEFAULT,        // (2) 상자 사용법 (GPU가 읽고 쓰기 가능하도록 설정)
+		D3D11_USAGE_DEFAULT,        // (2) 상자 사용법 (GPU가 읽고 쓰기 가능하도록 설정) gpu가 읽고 쓰기 가능하도록 설정 gpu에서의 접근은 제한적임
         D3D11_BIND_VERTEX_BUFFER,   // (3) 상자의 용도 (정점 데이터를 담는 용도)
         0,                          // (4) CPU 접근 권한 (필요 없음)
         0,                          // (5) 기타 플래그
@@ -283,7 +283,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             // stride가 왜 필요한가? // 정답: GPU가 버퍼를 읽을 때 점 하나가 몇 바이트인지 알아야 다음 점의 위치를 정확히 찾을 수 있기 때문입니다. (우리 코드는 28바이트)
 
             // [IA 단계] 점들을 잇는 규칙 설정
-            g_pImmediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST); // (13) "점 3개씩 묶어서 삼각형으로 그려!"
+            g_pImmediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST); // (13) "점 3개씩 묶어서 삼각형으로 그려!" 입력된 정점들을 3개씩 끊엇허 각각 독립된 삼각형으로 그림
 
             g_pImmediateContext->VSSetShader(vShader, nullptr, 0); // (14) 위치 결정 마법(VS) 장착
             g_pImmediateContext->PSSetShader(pShader, nullptr, 0); // (15) 색칠 공부 마법(PS) 장착

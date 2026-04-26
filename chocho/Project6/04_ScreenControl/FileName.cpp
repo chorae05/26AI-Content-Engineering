@@ -98,19 +98,26 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 // [메인 함수]
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
-    // 1. 윈도우 클래스 등록 및 생성
+    // 1. 윈도우 클래스 등록 및 생성   01_BLANKSCREEN+DRAWING과 거의 동일한 창 생성 코드
     WNDCLASSEXW wcex = { sizeof(WNDCLASSEX) };
     wcex.lpfnWndProc = WndProc;
     wcex.hInstance = hInstance;
     wcex.lpszClassName = L"DX11VideoClass";
     RegisterClassExW(&wcex);
 
+
+    //!!!!!!!! [AdjustWindowRect]: 테두리와 타이틀바 두께를 계산해주는 함수
+   // "안쪽 그림 그리는 영역만 800x600이 되게 창 전체 크기를 계산해줘!"라는 뜻
     RECT rc = { 0, 0, g_Config.Width, g_Config.Height };
     AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, FALSE);
+
+    //01_BLANKSCREEN+DRAWING과 거의 동일한 창 생성 코드
     HWND hWnd = CreateWindowW(L"DX11VideoClass", L"F: Fullscreen | 1: 800x600 | 2: 1280x720",
         WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, rc.right - rc.left, rc.bottom - rc.top, nullptr, nullptr, hInstance, nullptr);
     ShowWindow(hWnd, nCmdShow);
 
+
+    //01_BLANKSCREEN+DRAWING과 거의 동일한 창 생성 코드
     // 2. DX11 장치 및 도화지 관리자(SwapChain) 설정
     DXGI_SWAP_CHAIN_DESC sd = {};
     sd.BufferCount = 1;                             // 백버퍼(뒷면 도화지) 1개 사용
@@ -121,6 +128,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     sd.OutputWindow = hWnd;                         // 그림을 띄울 창 주소
     sd.SampleDesc.Count = 1;                        // 안티앨리어싱(계단현상 방지) 1배수(안 함)
     sd.Windowed = TRUE;                             // 창모드로 시작
+
 
     // 공장(Device), 작업반장(Context), 교체기(SwapChain)를 한꺼번에 생성
     D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, 0, nullptr, 0,
