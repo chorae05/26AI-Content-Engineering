@@ -131,19 +131,34 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
     // 4. 셰이더 컴파일 (간략화된 소스 사용)(GPU가 읽는 전용 프로그램 코드)
     const char* shaderSource = R"(
-        struct VS_IN { float3 pos : POSITION; float4 col : COLOR; };
+        // [구조체 정의] 데이터가 어떤 모양으로 들어오고 나갈지 약속함
+        struct VS_IN { 
+            float3 pos : POSITION; // 들어오는 점의 위치 (x, y, z)
+            float4 col : COLOR;    // 들어오는 점의 색상 (r, g, b, a)
+        };
+        struct PS_IN { float4 pos : SV_POSITION; float4 col : COLOR; }; // 위치 계산이 끝난 최종 시스템 좌표와 픽셀로 넘겨줄 색상
 
-
-        struct PS_IN { float4 pos : SV_POSITION; float4 col : COLOR; };
-        PS_IN VS(VS_IN input) { PS_IN output; output.pos = float4(input.pos, 1.0f); output.col = input.col; return output; }
-        float4 PS(PS_IN input) : SV_Target { return input.col; }
+        // [VS: Vertex Shader] 점의 위치를 계산하는 함수
+        PS_IN VS(VS_IN input) { 
+            PS_IN output; 
+            // 3D 좌표(float3)를 4D 좌표(float4)로 변환 (z값 뒤에 1.0f를 붙임)
+            output.pos = float4(input.pos, 1.0f); 
+            output.col = input.col; // 색상은 그대로 전달
+            return output; 
+        }
+        // [PS: Pixel Shader] 점 사이의 면을 채우는 색상을 결정하는 함수
+        float4 PS(PS_IN input) : SV_Target { return input.col; }        // 계산된 색상을 최종적으로 화면(Target)에 출력함
     )";
+
+
     ID3DBlob* vsBlob, * psBlob;
 
+    // 텍스트로 된 셰이더 소스 코드를 GPU가 읽을 수 있는 **이진수 데이터(Binary)**로 번역하는 과정
     // (소스, 길이, 이름, 매크로, 인클루드, 함수명, 버전, 플래그1, 플래그2, 결과물, 에러물)
     D3DCompile(shaderSource, strlen(shaderSource), nullptr, nullptr, nullptr, "VS", "vs_4_0", 0, 0, &vsBlob, nullptr);
     D3DCompile(shaderSource, strlen(shaderSource), nullptr, nullptr, nullptr, "PS", "ps_4_0", 0, 0, &psBlob, nullptr);
 
+    //번역된 데이터를 바탕으로 그래픽 카드 메모리에 실제 실행 가능한 부품을 만듦
     // 컴파일된 결과로 실제 셰이더 부품 생성
     g_pd3dDevice->CreateVertexShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), nullptr, &g_pVertexShader);
     g_pd3dDevice->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), nullptr, &g_pPixelShader);
@@ -154,8 +169,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
         { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
     };
-    g_pd3dDevice->CreateInputLayout(layout, 2, vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), &g_pInputLayout);
-    vsBlob->Release(); psBlob->Release();
+
+    // (가이드 배열, 항목 개수, 셰이더 번역본 주소, 번역본 크기, 결과물 주소)
+	// "layout"이라는 설계도를 바탕으로 GPU가 점 데이터를 제대로 해석할 수 있도록 통역기(Input Layout)를 만들어서 저장
+	g_pd3dDevice->CreateInputLayout(layout, 2, vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), &g_pInputLayout);
+
+	vsBlob->Release(); psBlob->Release(); // 번역된 셰이더 데이터(Blob)는 이제 필요 없으니 메모리에서 해제
 
     // 5. 삼각형의 점 데이터 생성
     Vertex vertices[] = {
@@ -165,9 +184,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     };
 
     // [버퍼 설명서] (사이즈, 용도, 바인딩 타입, CPU 접근, 플래그, 스트라이드)
+    //BUFFER_DESC: 그래픽 카드에게 "방 이만큼만 빌려줘"라고 하는 요청서.
     D3D11_BUFFER_DESC bd = { sizeof(vertices), D3D11_USAGE_DEFAULT, D3D11_BIND_VERTEX_BUFFER, 0, 0, 0 };
+    //SUBRESOURCE_DATA: 그 방에 처음 들어갈 이사 짐.
     D3D11_SUBRESOURCE_DATA initData = { vertices, 0, 0 };
+    //CreateBuffer: 실제로 방을 만들고 짐을 넣은 뒤 **열쇠(g_pVertexBuffer)**를 받는 동작.
     g_pd3dDevice->CreateBuffer(&bd, &initData, &g_pVertexBuffer);
+
 
     // --- [게임 루프] ---
     MSG msg = { 0 };
@@ -189,8 +212,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             if (g_Config.NeedsResize) RebuildVideoResources(hWnd);
 
             // [렌더링]
-            float clearColor[] = { 0.1f, 0.2f, 0.3f, 1.0f };
-            g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView, clearColor);
+			float clearColor[] = { 0.1f, 0.2f, 0.3f, 1.0f }; // 배경색 (남색)
+			g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView, clearColor);// 도화지를 배경색으로 지움
 
             // 중요: 뷰포트는 매 프레임 바뀐 g_Config 기준으로 설정"도화지 중 어느 영역에 그릴까?" (0, 0 위치부터 전체 크기만큼)
             D3D11_VIEWPORT vp = { 0.0f, 0.0f, (float)g_Config.Width, (float)g_Config.Height, 0.0f, 1.0f };
@@ -211,6 +234,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             g_pImmediateContext->Draw(3, 0);
 
             // [화면 제출] (수직동기화 여부, 추가 플래그)
+            //설정값에 따라 화면 찢어짐을 방지하거나, 최대 프레임을 뽑아내거나 선택할 수 있게 만든 코드야!
+            //g_Config.VSync: 1이면 "모니터 기다려!", 0이면 "기다리지 말고 바로 쏴!" (유동적 설정)
             g_pSwapChain->Present(g_Config.VSync, 0);
         }
     }
